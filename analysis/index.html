@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en" data-root="..">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Image Analysis · Medical Imaging Lab</title>
+  <meta name="description" content="From a noisy MR image to a measurement: denoising, skull stripping with Otsu's threshold, multi-contrast k-means tissue segmentation, Dice scores and lesion volume against the ground truth.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231f3a5f'/%3E%3Ccircle cx='32' cy='32' r='15' fill='none' stroke='white' stroke-width='4'/%3E%3Cpath d='M32 12v40M12 32h40' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="../assets/theme.css">
+  <style>
+    .img-grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    @media (max-width: 1100px) { .img-grid.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .seg-canvas { width: 100%; aspect-ratio: 1; image-rendering: pixelated; display: block; border-radius: 6px; background: #000; }
+    .swatch { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+    #scatter svg { display: block; width: 100%; height: auto; }
+    #scatter text { font: 11px var(--sans); fill: var(--muted); }
+    .dice-bar { display: inline-block; height: 8px; border-radius: 2px; background: var(--s1); vertical-align: middle; margin-right: 6px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="wrap">
+      <header class="page-head">
+        <p class="eyebrow">Medical Imaging Lab · 6</p>
+        <h1>Image analysis</h1>
+        <p class="lede">A reconstructed image is not yet an answer. A radiologist, or software, has to clean it, find the brain, label each tissue and measure what matters, such as the size of a lesion. Here the head phantom is scanned with three contrasts, noise is added, and a simple pipeline segments it. Because the phantom's true anatomy is known, every step can be scored.</p>
+        <p class="updated" id="status">Segmenting…</p>
+      </header>
+
+      <section class="block">
+        <div class="panel-grid">
+          <div class="card">
+            <div class="ctrl-group">
+              <h3>Scan</h3>
+              <div id="s-noise"></div>
+            </div>
+            <div class="ctrl-group">
+              <h3>Denoising</h3>
+              <div id="filter" style="margin-bottom:10px"></div>
+              <div id="s-sigma"></div>
+              <p class="note" id="filter-note" style="margin:0"></p>
+            </div>
+            <div class="ctrl-group">
+              <h3>Segmentation</h3>
+              <span class="control">Contrasts used</span>
+              <div id="features" style="margin:6px 0 10px"></div>
+              <p class="note" id="features-note" style="margin:0"></p>
+              <span class="control" style="display:block;margin-top:12px">Clean-up</span>
+              <div id="post" style="margin:6px 0 8px"></div>
+              <p class="note" id="post-note" style="margin:0"></p>
+            </div>
+          </div>
+          <div class="card">
+            <div class="img-grid four">
+              <div id="v-t1"></div><div id="v-t2"></div><div id="v-flair"></div><div id="v-den"></div>
+            </div>
+            <div class="img-grid four" style="margin-top:14px">
+              <div class="img-view"><div class="img-title">Ground truth</div><canvas class="seg-canvas" id="c-truth"></canvas></div>
+              <div class="img-view"><div class="img-title">Brain mask (Otsu)</div><canvas class="seg-canvas" id="c-mask"></canvas></div>
+              <div class="img-view"><div class="img-title">Segmentation (k-means)</div><canvas class="seg-canvas" id="c-seg"></canvas></div>
+              <div class="img-view"><div class="img-title">Errors</div><canvas class="seg-canvas" id="c-err"></canvas></div>
+            </div>
+            <div class="legend" id="seg-legend" style="margin-top:10px"></div>
+            <div class="tiles" id="tiles" style="margin-top:14px"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="block">
+        <div class="grid-2">
+          <div class="card">
+            <h3>Measurements against the truth</h3>
+            <div class="table-scroll"><table class="data" id="measure"></table></div>
+            <p class="note">Area in cm² for a 24 cm field of view. Dice = 2|A∩B| / (|A| + |B|): 1 is a perfect match, and below about 0.7 a segmentation is rarely useful.</p>
+          </div>
+          <div class="card">
+            <h3 id="scatter-title">Feature space</h3>
+            <div id="scatter"></div>
+            <p class="note">Each dot is a pixel inside the mask, placed by its normalized intensity in two contrasts and colored by its cluster. Crosses mark the signal each tissue should have, from the signal equations: k-means starts each cluster there, then moves it to the mean of the pixels it wins.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="block">
+        <h2>Noise against accuracy</h2>
+        <p class="sub">Mean Dice over the five tissues as the noise grows, for each denoising choice, with the contrasts selected above.</p>
+        <div class="card">
+          <div class="chart" id="sweep"></div>
+          <div class="legend" id="sweep-legend" style="margin-top:8px"></div>
+        </div>
+      </section>
+
+      <section class="block">
+        <h2>Reading it</h2>
+        <div class="prose">
+          <p><strong>Noise in MR magnitude images is Rician.</strong> The scanner measures a complex signal with Gaussian noise in both parts; taking the magnitude turns it into a Rician distribution, which is no longer zero-mean: dark regions such as air come out at about 1.25σ instead of 0. That bias matters when measuring low signals.</p>
+          <p><strong>Denoising trades noise for blur.</strong> A Gaussian filter averages neighbours and softens every edge; a median filter takes the middle value of a window, which removes outliers while keeping boundaries. Modern pipelines use non-local means, total variation or neural networks, all built on the same trade-off.</p>
+          <p><strong>Skull stripping, then classification.</strong> Otsu's method picks the threshold that best separates a histogram into two groups, here head and background (the skull, with almost no signal, falls out with the air). Inside the mask, k-means groups pixels by their intensities. With one contrast, grey matter and lesions overlap; adding T2 and FLAIR separates them, which is why clinical protocols acquire several contrasts.</p>
+          <p><strong>Partial volume.</strong> Even with no noise the score is not perfect: pixels on a boundary contain two tissues and get a mixed signal. Thin structures such as the cortical ribbon suffer most, and a boundary between a bright and a dark tissue can mimic a third one in between: here the edge of the scalp passes for lesion until a clean-up step removes most of the stray pixels. Real segmentation tools (FreeSurfer, FSL FAST, SPM, and deep networks such as nnU-Net) model partial volume, intensity inhomogeneity and anatomical priors on top of this basic idea.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="../assets/vendor/d3.v7.9.0.min.js"></script>
+  <script src="../assets/imaging.js"></script>
+  <script src="../assets/core.js"></script>
+  <script src="../assets/viz.js"></script>
+  <script src="../assets/pages/analysis.js"></script>
+</body>
+</html>

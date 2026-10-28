@@ -11,6 +11,7 @@ Interactive simulations of how MRI and CT images are made, from the physics that
 3. **[k-space](https://angelmza1990.github.io/medical-imaging-lab/k-space/)**: the image's Fourier transform and what each part of it carries: low- and high-pass, aliasing from skipped lines, partial Fourier, random sampling, a corrupted sample (herringbone) and motion (ghosting), plus the wave behind any k-space point.
 4. **[Accelerated MRI](https://angelmza1990.github.io/medical-imaging-lab/accelerated-mri/)**: compressed sensing against zero filling, with random or regular undersampling, noise and the sparsity weight, converging live in a web worker.
 5. **[CT reconstruction](https://angelmza1990.github.io/medical-imaging-lab/ct/)**: the sinogram, plain and filtered back-projection (Ram-Lak, Shepp-Logan, Hann), the number of views, radiation dose as photon noise, and Hounsfield-unit windows.
+6. **[Image analysis](https://angelmza1990.github.io/medical-imaging-lab/analysis/)**: Rician noise on T1, T2 and FLAIR images, Gaussian or median denoising, skull stripping with Otsu's threshold, multi-contrast k-means segmentation started from each tissue's expected signal, a majority-filter clean-up, and Dice scores and areas (including the lesion's) against the phantom's true anatomy, with a sweep of accuracy against noise.
 
 The [overview](https://angelmza1990.github.io/medical-imaging-lab/) is also a short guide to the field and to the tools and datasets for going further; the [method](https://angelmza1990.github.io/medical-imaging-lab/method/) page documents the phantom, parameters, algorithms and limits.
 
@@ -24,8 +25,9 @@ Static HTML, CSS and JavaScript; [D3.js](https://d3js.org/) for charts. All nume
 - a Bloch simulator with hard pulses, exact precession and relaxation
 - the Radon transform, a spatial-kernel ramp filter and back-projection
 - an orthonormal Haar transform and FISTA compressed sensing with adaptive restart and cycle spinning
+- Rician noise, Gaussian and median filters, Otsu's threshold, k-means, a majority filter and the Dice score
 
-The tests in `tests/` check every routine against an analytic result: a direct DFT, Parseval's theorem, signal-equation limits, exponential relaxation, spin-echo refocusing, the T2* of a Lorentzian field spread, the Radon transform of a disk, Hounsfield units recovered within 3 HU, and compressed sensing beating zero filling. CI runs them and opens every page in headless Chrome on each push.
+The tests in `tests/` check every routine against an analytic result: a direct DFT, Parseval's theorem, signal-equation limits, exponential relaxation, spin-echo refocusing, the T2* of a Lorentzian field spread, the Radon transform of a disk, Hounsfield units recovered within 3 HU, compressed sensing beating zero filling, the Rayleigh mean of Rician noise in the background, and Otsu and k-means recovering known clusters. CI runs them and opens every page in headless Chrome on each push.
 
 ## Run it locally
 

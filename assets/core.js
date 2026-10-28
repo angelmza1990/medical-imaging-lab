@@ -9,6 +9,7 @@
     { id: "kspace", href: "k-space/", label: "k-space" },
     { id: "cs", href: "accelerated-mri/", label: "Accelerated MRI" },
     { id: "ct", href: "ct/", label: "CT" },
+    { id: "analysis", href: "analysis/", label: "Analysis" },
     { id: "method", href: "method/", label: "Method" },
   ];
 

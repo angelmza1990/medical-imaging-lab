@@ -203,3 +203,13 @@ test("Dice is 1 for identical maps and the phantom's hard labels match its fract
   const frac = ph.fractions.wm.reduce((s, v) => s + v, 0);
   close(area, frac, 0.03 * frac, "white matter area");
 });
+
+test("A majority filter removes isolated labels and keeps large regions", () => {
+  const n = 16, lab = new Int32Array(n * n);
+  for (let i = 0; i < n * n; i++) lab[i] = i % n < 8 ? 1 : 2;
+  lab[3 * n + 3] = 5;
+  const out = I.majorityFilter(lab, n);
+  assert.equal(out[3 * n + 3], 1);
+  assert.equal(out[10 * n + 12], 2);
+  assert.equal(out[10 * n + 2], 1);
+});

@@ -44,6 +44,14 @@
             <li><strong>Noise</strong>: detected photons follow a Poisson distribution (approximated as Gaussian) around I₀ e<sup>−∫μ</sup>, with water at 0.2 cm⁻¹. The geometry is far coarser than a clinical scanner's (about 1,000 views and 900 detectors), so the photon counts that give clinical noise levels here are not the clinical ones.</li>
           </ul>
 
+          <h2>Analysis</h2>
+          <ul>
+            <li><strong>Images</strong>: T1-weighted (spin echo, TR 500, TE 15 ms), T2-weighted (TR 4000, TE 100 ms) and FLAIR (TR 9000, TE 120 ms, TI nulling fluid) at 1.5 T on a 128 × 128 grid, with Rician noise of the same share of each image's peak.</li>
+            <li><strong>Mask</strong>: Otsu's threshold on the brightest of the three normalized contrasts in each pixel.</li>
+            <li><strong>Segmentation</strong>: k-means on the chosen contrasts inside the mask, with five clusters started at the expected signal of each tissue, so each cluster keeps its tissue's name; an optional 3 × 3 majority filter on the labels.</li>
+            <li><strong>Scoring</strong>: the truth is the tissue filling most of each pixel; skull and air count as background. Areas assume a 24 cm field of view.</li>
+          </ul>
+
           <h2>Tests</h2>
           <p>The numerical core is tested against analytic results, run with <code>node --test tests/*.test.js</code> on every change:</p>
           <ul>
@@ -51,7 +59,8 @@
             <li>signal equations at their limits, the inversion-recovery null at TI = T1 ln 2 and the Ernst angle;</li>
             <li>Bloch relaxation against the exponentials, a spin echo refocusing to e<sup>−TE/T2</sup>, and the T2* decay of a Lorentzian spread;</li>
             <li>the Radon transform of a disk against 2√(R² − r²), and filtered back-projection recovering grey matter, white matter and fluid within 3 HU;</li>
-            <li>the Haar transform's orthonormality, and compressed sensing beating zero filling.</li>
+            <li>the Haar transform's orthonormality, and compressed sensing beating zero filling;</li>
+            <li>Gaussian blur keeping the mean, the median and majority filters removing isolated values, the Rayleigh mean of Rician noise, and Otsu and k-means recovering known clusters.</li>
           </ul>
 
           <h2>Limits</h2>

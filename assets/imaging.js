@@ -536,13 +536,13 @@
   }
 
   /**
-   * k-means on m points with d features (points[i] is an array of length d), seeded with k-means++.
-   * Returns { labels: Int32Array, centers: number[][], iters }.
+   * k-means on m points with d features (points[i] is an array of length d). Starts from `init` centres
+   * when given, otherwise from a k-means++ seeding. Returns { labels: Int32Array, centers: number[][], iters }.
    */
-  function kmeans(points, k, { iters = 60, seed = 1 } = {}) {
+  function kmeans(points, k, { iters = 60, seed = 1, init = null } = {}) {
     const m = points.length, d = points[0].length, rand = rng(seed);
     const dist2 = (p, c) => { let s = 0; for (let j = 0; j < d; j++) s += (p[j] - c[j]) ** 2; return s; };
-    const centers = [points[Math.floor(rand() * m)].slice()];
+    const centers = init ? init.map((c) => c.slice()) : [points[Math.floor(rand() * m)].slice()];
     const near = new Float64Array(m).fill(Infinity);
     while (centers.length < k) {
       let total = 0;
@@ -568,6 +568,24 @@
     return { labels, centers, iters: it };
   }
 
+  /** Majority (mode) filter on a label map: each pixel takes the most common label in its 3 x 3 window. */
+  function majorityFilter(labels, n) {
+    const out = new Int32Array(n * n), count = new Map();
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      count.clear();
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const yy = y + dy, xx = x + dx;
+        if (yy < 0 || xx < 0 || yy >= n || xx >= n) continue;
+        const l = labels[yy * n + xx];
+        count.set(l, (count.get(l) || 0) + 1);
+      }
+      let best = labels[y * n + x], bc = count.get(best);
+      for (const [l, c] of count) if (c > bc) { best = l; bc = c; }
+      out[y * n + x] = best;
+    }
+    return out;
+  }
+
   /** Dice overlap of label a in one map and label b in another: 2|A and B| / (|A| + |B|). */
   function dice(mapA, mapB, a, b = a) {
     let inter = 0, na = 0, nb = 0;
@@ -587,7 +605,7 @@
     rotate, bloch, spread, lorentzian, t2star,
     radon, rampFilter, backproject,
     haar2, randomLineMask, csRecon, nrmse, psnr, maxOf,
-    labelMap, addRician, gaussianBlur, medianFilter, otsu, kmeans, dice,
+    labelMap, addRician, gaussianBlur, medianFilter, otsu, kmeans, majorityFilter, dice,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.Imaging = api;
