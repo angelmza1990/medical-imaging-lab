@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en" data-root="..">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tissue Contrast · Medical Imaging Lab</title>
+  <meta name="description" content="How TR, TE and TI turn the same brain into T1-weighted, T2-weighted, proton-density, FLAIR and STIR images.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231f3a5f'/%3E%3Ccircle cx='32' cy='32' r='15' fill='none' stroke='white' stroke-width='4'/%3E%3Cpath d='M32 12v40M12 32h40' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="../assets/theme.css">
+  <style>
+    .viewer { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+    @media (max-width: 760px) { .viewer { grid-template-columns: 1fr; } }
+    .dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="wrap">
+      <header class="page-head">
+        <p class="eyebrow">Medical Imaging Lab · 2</p>
+        <h1>Tissue contrast</h1>
+        <p class="lede">MRI has no single picture of the body. Each tissue has its own T1, T2 and proton density, and the timing of the sequence decides which of them shows. Change the repetition time (TR), echo time (TE) and inversion time (TI) and watch the same head turn into the familiar clinical contrasts.</p>
+      </header>
+
+      <section class="block">
+        <div class="controls"><span class="control">Clinical presets <span id="presets"></span></span></div>
+        <div class="panel-grid">
+          <div class="card">
+            <div class="ctrl-group">
+              <h3>Sequence</h3>
+              <div id="seq" style="margin-bottom:12px"></div>
+              <div id="field"></div>
+            </div>
+            <div class="ctrl-group">
+              <h3>Timing</h3>
+              <div id="s-tr"></div><div id="s-te"></div><div id="s-ti"></div><div id="s-flip"></div>
+            </div>
+            <div class="ctrl-group">
+              <h3>Image</h3>
+              <div id="s-noise"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="viewer">
+              <div id="image"></div>
+              <div>
+                <h3 id="weighting"></h3>
+                <table class="data" id="signals"></table>
+                <p class="note" id="contrast-note"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="block">
+        <div class="grid-2">
+          <div class="card"><h3 id="c1-title">Signal against echo time</h3><div class="chart" id="c1"></div></div>
+          <div class="card"><h3 id="c2-title">Signal against repetition time</h3><div class="chart" id="c2"></div></div>
+        </div>
+        <div class="legend" id="legend" style="margin-top:12px"></div>
+      </section>
+
+      <section class="block">
+        <h2>Reading it</h2>
+        <div class="prose">
+          <p><strong>TR sets T1 weighting.</strong> With a short TR, tissues with a long T1 have no time to recover between pulses and stay dark: fat and white matter are bright, fluid is dark. A long TR lets everything recover and removes T1 from the picture.</p>
+          <p><strong>TE sets T2 weighting.</strong> A long TE gives tissues with a short T2 time to fade, so fluid and oedema, with long T2, stand out bright. A short TE keeps T2 out of it.</p>
+          <p><strong>Long TR and short TE</strong> leave only proton density. <strong>Inversion recovery</strong> adds a third knob: reading out when a tissue's magnetization crosses zero erases it, fluid in FLAIR (fluid-attenuated inversion recovery) so lesions next to the ventricles show, fat in STIR.</p>
+          <p class="formula">Spin echo:  S = PD · (1 − e<sup>−TR/T1</sup>) · e<sup>−TE/T2</sup><br>Inversion recovery:  S = PD · |1 − 2e<sup>−TI/T1</sup> + e<sup>−TR/T1</sup>| · e<sup>−TE/T2</sup></p>
+          <p>The phantom is a set of ellipses standing in for scalp fat, skull, grey and white matter, ventricles and two small lesions. Relaxation times are approximate values from the literature; real tissue varies by 10–20% and the images here ignore effects such as magnetization transfer and diffusion.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="../assets/vendor/d3.v7.9.0.min.js"></script>
+  <script src="../assets/imaging.js"></script>
+  <script src="../assets/core.js"></script>
+  <script src="../assets/viz.js"></script>
+  <script src="../assets/pages/contrast.js"></script>
+</body>
+</html>

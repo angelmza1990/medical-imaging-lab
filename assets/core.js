@@ -238,7 +238,7 @@
       o.annotations.filter((a) => a.date >= x.domain()[0] && a.date <= x.domain()[1]).forEach((a) => {
         const ax = x(a.date);
         const row = ax - lastX[0] > 90 ? 0 : ax - lastX[1] > 90 ? 1 : -1;
-        if (row < 0 || narrow) return;
+        if (row < 0) return; // skip a marker whose label would collide with the last two
         lastX[row] = ax;
         ann.append("line").attr("x1", ax).attr("x2", ax).attr("y1", -m.top + 14 + row * 12).attr("y2", ih);
         ann.append("text").attr("x", ax + 4).attr("y", -m.top + 10 + row * 12 + 4).text(a.label);
