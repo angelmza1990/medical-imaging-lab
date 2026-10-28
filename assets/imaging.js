@@ -461,6 +461,125 @@
     return 10 * Math.log10((hi * hi) / (s / ref.length));
   }
 
+  // ======================= image analysis =======================
+  /** Hard labels: the index (into TISSUE_KEYS) of the tissue filling most of each pixel. */
+  function labelMap(ph) {
+    const n = ph.n, out = new Int32Array(n * n), best = new Float32Array(n * n).fill(-1);
+    TISSUE_KEYS.forEach((k, t) => {
+      const f = ph.fractions[k];
+      for (let i = 0; i < n * n; i++) if (f[i] > best[i]) { best[i] = f[i]; out[i] = t; }
+    });
+    return out;
+  }
+
+  /** Magnitude image with Rician noise: |S + sigma (g1 + i g2)|, as a real MR magnitude image has. */
+  function addRician(img, sigma, seed = 1) {
+    const rand = rng(seed), out = new Float64Array(img.length);
+    for (let i = 0; i < img.length; i++) out[i] = Math.hypot(img[i] + sigma * gaussian(rand), sigma * gaussian(rand));
+    return out;
+  }
+
+  /** Separable Gaussian blur with sigma in pixels; edges are clamped. */
+  function gaussianBlur(img, n, sigma) {
+    if (!(sigma > 0)) return Float64Array.from(img);
+    const r = Math.ceil(3 * sigma), w = new Float64Array(2 * r + 1);
+    let sum = 0;
+    for (let k = -r; k <= r; k++) sum += w[k + r] = Math.exp(-(k * k) / (2 * sigma * sigma));
+    for (let k = 0; k < w.length; k++) w[k] /= sum;
+    const tmp = new Float64Array(n * n), out = new Float64Array(n * n);
+    const clamp = (v) => (v < 0 ? 0 : v >= n ? n - 1 : v);
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      let a = 0;
+      for (let k = -r; k <= r; k++) a += w[k + r] * img[y * n + clamp(x + k)];
+      tmp[y * n + x] = a;
+    }
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      let a = 0;
+      for (let k = -r; k <= r; k++) a += w[k + r] * tmp[clamp(y + k) * n + x];
+      out[y * n + x] = a;
+    }
+    return out;
+  }
+
+  /** Median over a (2r + 1) x (2r + 1) window: removes noise while keeping edges sharp. */
+  function medianFilter(img, n, r = 1) {
+    const out = new Float64Array(n * n), win = new Float64Array((2 * r + 1) ** 2);
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      let m = 0;
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        const yy = Math.min(n - 1, Math.max(0, y + dy)), xx = Math.min(n - 1, Math.max(0, x + dx));
+        win[m++] = img[yy * n + xx];
+      }
+      const w = win.subarray(0, m).sort();
+      out[y * n + x] = w[m >> 1];
+    }
+    return out;
+  }
+
+  /** Otsu's threshold: the cut that maximizes the between-class variance of a histogram. */
+  function otsu(values, bins = 256) {
+    let lo = Infinity, hi = -Infinity;
+    for (const v of values) { if (v < lo) lo = v; if (v > hi) hi = v; }
+    const h = new Float64Array(bins), span = hi - lo || 1;
+    for (const v of values) h[Math.min(bins - 1, Math.floor(((v - lo) / span) * bins))]++;
+    let total = 0, sumAll = 0;
+    for (let b = 0; b < bins; b++) { total += h[b]; sumAll += b * h[b]; }
+    let w0 = 0, sum0 = 0, best = -1, cut = 0;
+    for (let b = 0; b < bins - 1; b++) {
+      w0 += h[b]; sum0 += b * h[b];
+      const w1 = total - w0;
+      if (!w0 || !w1) continue;
+      const m0 = sum0 / w0, m1 = (sumAll - sum0) / w1, between = w0 * w1 * (m0 - m1) ** 2;
+      if (between > best) { best = between; cut = b; }
+    }
+    return lo + ((cut + 1) / bins) * span;
+  }
+
+  /**
+   * k-means on m points with d features (points[i] is an array of length d), seeded with k-means++.
+   * Returns { labels: Int32Array, centers: number[][], iters }.
+   */
+  function kmeans(points, k, { iters = 60, seed = 1 } = {}) {
+    const m = points.length, d = points[0].length, rand = rng(seed);
+    const dist2 = (p, c) => { let s = 0; for (let j = 0; j < d; j++) s += (p[j] - c[j]) ** 2; return s; };
+    const centers = [points[Math.floor(rand() * m)].slice()];
+    const near = new Float64Array(m).fill(Infinity);
+    while (centers.length < k) {
+      let total = 0;
+      for (let i = 0; i < m; i++) { near[i] = Math.min(near[i], dist2(points[i], centers[centers.length - 1])); total += near[i]; }
+      let r = rand() * total, i = 0;
+      while (i < m - 1 && (r -= near[i]) > 0) i++;
+      centers.push(points[i].slice());
+    }
+    const labels = new Int32Array(m).fill(-1);
+    let it = 0;
+    for (; it < iters; it++) {
+      let moved = 0;
+      for (let i = 0; i < m; i++) {
+        let best = 0, bd = Infinity;
+        for (let c = 0; c < k; c++) { const v = dist2(points[i], centers[c]); if (v < bd) { bd = v; best = c; } }
+        if (labels[i] !== best) { labels[i] = best; moved++; }
+      }
+      const sum = Array.from({ length: k }, () => new Float64Array(d)), cnt = new Float64Array(k);
+      for (let i = 0; i < m; i++) { cnt[labels[i]]++; for (let j = 0; j < d; j++) sum[labels[i]][j] += points[i][j]; }
+      for (let c = 0; c < k; c++) if (cnt[c]) for (let j = 0; j < d; j++) centers[c][j] = sum[c][j] / cnt[c];
+      if (!moved) break;
+    }
+    return { labels, centers, iters: it };
+  }
+
+  /** Dice overlap of label a in one map and label b in another: 2|A and B| / (|A| + |B|). */
+  function dice(mapA, mapB, a, b = a) {
+    let inter = 0, na = 0, nb = 0;
+    for (let i = 0; i < mapA.length; i++) {
+      const x = mapA[i] === a, y = mapB[i] === b;
+      if (x) na++;
+      if (y) nb++;
+      if (x && y) inter++;
+    }
+    return na + nb ? (2 * inter) / (na + nb) : 1;
+  }
+
   const api = {
     fft, fft2, fftshift, toKspace, fromKspace, rng, gaussian,
     TISSUES, TISSUE_KEYS, HU, HEAD, phantom,
@@ -468,6 +587,7 @@
     rotate, bloch, spread, lorentzian, t2star,
     radon, rampFilter, backproject,
     haar2, randomLineMask, csRecon, nrmse, psnr, maxOf,
+    labelMap, addRician, gaussianBlur, medianFilter, otsu, kmeans, dice,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.Imaging = api;

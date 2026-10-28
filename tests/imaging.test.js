@@ -156,3 +156,50 @@ test("compressed sensing beats zero filling on undersampled k-space", () => {
   // clearly better than filling the missing lines with zeros (about 5 dB here at 64 x 64)
   assert.ok(I.psnr(cs, img) > I.psnr(zero, img) + 4, `cs ${I.psnr(cs, img)} dB vs zero-filled ${I.psnr(zero, img)} dB`);
 });
+
+test("Gaussian blur keeps the mean and a median filter removes isolated spikes", () => {
+  const n = 32, rand = I.rng(9);
+  const img = Float64Array.from({ length: n * n }, () => rand());
+  const mean = (a) => a.reduce((s, v) => s + v, 0) / a.length;
+  const b = I.gaussianBlur(img, n, 1.5);
+  close(mean(b), mean(img), 0.01, "blurred mean");
+  const v = (a) => { const m = mean(a); return a.reduce((s, x) => s + (x - m) ** 2, 0) / a.length; };
+  assert.ok(v(b) < v(img) / 4, "blur reduces variance");
+  const flat = new Float64Array(n * n).fill(1);
+  flat[5 * n + 7] = 100;
+  const med = I.medianFilter(flat, n, 1);
+  assert.ok(med.every((x) => x === 1), "spike removed");
+});
+
+test("Rician noise biases dark regions upwards by sigma * sqrt(pi / 2)", () => {
+  const sigma = 0.1, out = I.addRician(new Float64Array(20000), sigma, 4);
+  close(out.reduce((s, v) => s + v, 0) / out.length, sigma * Math.sqrt(Math.PI / 2), 0.003, "Rayleigh mean");
+});
+
+test("Otsu splits two separated populations and k-means recovers three clusters", () => {
+  const rand = I.rng(2), vals = [];
+  for (let i = 0; i < 2000; i++) vals.push((i % 2 ? 5 : 1) + 0.3 * I.gaussian(rand));
+  const t = I.otsu(vals);
+  assert.ok(t > 2 && t < 4, `threshold ${t}`);
+  const centres = [[0, 0], [4, 0], [0, 4]], pts = [], truth = [];
+  for (let i = 0; i < 1500; i++) { const c = i % 3; truth.push(c); pts.push([centres[c][0] + 0.4 * I.gaussian(rand), centres[c][1] + 0.4 * I.gaussian(rand)]); }
+  const { labels, centers } = I.kmeans(pts, 3, { seed: 5 });
+  for (const c of centres) assert.ok(centers.some((m) => Math.hypot(m[0] - c[0], m[1] - c[1]) < 0.1), `centre ${c}`);
+  const map = centres.map((_, c) => labels[truth.indexOf(c)]);
+  assert.equal(new Set(map).size, 3);
+  const agree = truth.filter((c, i) => labels[i] === map[c]).length / truth.length;
+  assert.ok(agree > 0.99, `agreement ${agree}`);
+});
+
+test("Dice is 1 for identical maps and the phantom's hard labels match its fractions", () => {
+  const ph = I.phantom(64, 3), lab = I.labelMap(ph);
+  const wm = I.TISSUE_KEYS.indexOf("wm");
+  assert.equal(I.dice(lab, lab, wm), 1);
+  const shifted = Int32Array.from(lab, (_, i) => lab[(i + 1) % lab.length]);
+  const d = I.dice(lab, shifted, wm);
+  assert.ok(d > 0.8 && d < 1, `shifted Dice ${d}`);
+  let area = 0;
+  for (let i = 0; i < lab.length; i++) if (lab[i] === wm) area++;
+  const frac = ph.fractions.wm.reduce((s, v) => s + v, 0);
+  close(area, frac, 0.03 * frac, "white matter area");
+});
