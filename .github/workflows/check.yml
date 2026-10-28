@@ -1,0 +1,34 @@
+name: Check
+
+# Runs the numerical tests, then opens every page in headless Chrome and fails on script errors,
+# missing local files, pages that render nothing, or sideways scrolling on a phone-width screen.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Numerical tests
+        run: node --test tests/*.test.js
+
+      - name: Install the browser driver
+        run: npm install --no-save puppeteer-core@23.11.1
+
+      - name: Check every page
+        env:
+          CHROME: /usr/bin/google-chrome
+        run: node scripts/check_pages.mjs
