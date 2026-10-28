@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en" data-root=".">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Medical Imaging Lab</title>
+  <meta name="description" content="Interactive simulations of how MRI and CT images are made: spin physics, tissue contrast, k-space, compressed sensing and CT reconstruction, with a guide to the software of medical imaging.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231f3a5f'/%3E%3Ccircle cx='32' cy='32' r='15' fill='none' stroke='white' stroke-width='4'/%3E%3Cpath d='M32 12v40M12 32h40' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/theme.css">
+  <style>
+    .pipeline { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; counter-reset: step; }
+    .pipeline > div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; position: relative; }
+    .pipeline > div::before { counter-increment: step; content: counter(step); display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: var(--surface); font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+    .pipeline strong { display: block; margin-bottom: 4px; }
+    .pipeline span { font-size: 13px; color: var(--ink-2); display: block; }
+    .pipeline a { font-size: 13px; display: inline-block; margin-top: 8px; }
+    @media (max-width: 900px) { .pipeline { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 520px) { .pipeline { grid-template-columns: 1fr; } }
+    .paths { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    @media (max-width: 760px) { .paths { grid-template-columns: 1fr; } }
+    .paths .card { margin: 0; }
+    .paths .card + .card { margin: 0; }
+    .paths h3 { text-transform: none; letter-spacing: 0; font-size: 15px; color: var(--ink); margin: 0 0 6px; }
+    .paths p, .paths li { font-size: 14px; color: var(--ink-2); }
+    .paths ul { margin: 6px 0 0; padding-left: 18px; }
+    .paths li { margin: 3px 0; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="wrap">
+      <header class="page-head">
+        <p class="eyebrow">MRI · CT · Image reconstruction</p>
+        <h1>Medical Imaging Lab</h1>
+        <p class="lede">Scanners that see inside the body without a single cut are, underneath, machines for solving inverse problems. These simulations follow an image from the physics that creates the signal to the algorithms that turn it into a picture, all running in your browser on a synthetic head.</p>
+      </header>
+
+      <section class="block">
+        <h2>From signal to image</h2>
+        <p class="sub">Every modality follows the same chain. Each step is a field of software and research of its own.</p>
+        <div class="pipeline">
+          <div><strong>Physics</strong><span>How the body produces a measurable signal: spins relaxing in a magnet, X-rays attenuating through tissue.</span><a href="spin-physics/">Spin physics →</a></div>
+          <div><strong>Acquisition</strong><span>Which measurements to take and in what order: pulse sequences, timing, sampling patterns.</span><a href="contrast/">Tissue contrast →</a></div>
+          <div><strong>Reconstruction</strong><span>Turning raw data into an image: the inverse Fourier transform for MRI, filtered back-projection for CT.</span><a href="k-space/">k-space →</a> <a href="ct/">CT →</a></div>
+          <div><strong>Acceleration</strong><span>Measuring less and reconstructing just as well: parallel imaging, compressed sensing, deep learning.</span><a href="accelerated-mri/">Accelerated MRI →</a></div>
+          <div><strong>Analysis</strong><span>Denoising, registration, segmentation, quantification and computer-aided diagnosis.</span><span style="margin-top:8px;color:var(--muted)">Next module</span></div>
+        </div>
+      </section>
+
+      <section class="block">
+        <h2>Where the field is going</h2>
+        <div class="prose">
+          <p><strong>Faster scans.</strong> MRI is slow because k-space is measured line by line. Parallel imaging with many receiver coils, compressed sensing and, increasingly, neural networks trained on raw scanner data now cut scan times several-fold. Open datasets of raw k-space, led by fastMRI, made this a field anyone can work in.</p>
+          <p><strong>Lower dose.</strong> In CT the limit is radiation. Iterative and deep-learning reconstructions recover diagnostic images from fewer photons, and photon-counting detectors measure the energy of each X-ray, separating materials such as iodine and calcium.</p>
+          <p><strong>Quantitative imaging.</strong> Instead of images in arbitrary units, techniques such as MR fingerprinting measure T1, T2 and other tissue properties directly, so values can be compared across scanners and over time.</p>
+          <p><strong>Learning-based analysis.</strong> Segmentation networks (U-Net and its self-configuring successor nnU-Net), foundation models trained on millions of images and tools for registration and detection are moving from research into clinical software, with validation, bias and regulation as the open questions.</p>
+        </div>
+      </section>
+
+      <section class="block">
+        <h2>Paths to take it further</h2>
+        <div class="paths">
+          <div class="card"><h3>Physics and simulation</h3><p>Model the scanner itself and generate synthetic data.</p><ul><li>MRI: KomaMRI.jl, JEMRIS, MRiLab</li><li>CT: ASTRA Toolbox, TIGRE, ODL</li><li>Start: reproduce a spin echo, then a full 2D sequence</li></ul></div>
+          <div class="card"><h3>Reconstruction</h3><p>The most mathematical path: Fourier analysis, inverse problems, optimization.</p><ul><li>SigPy and BART for MRI reconstruction</li><li>fastMRI raw k-space data (knee, brain)</li><li>Start: SENSE with multi-coil data, then a learned reconstruction</li></ul></div>
+          <div class="card"><h3>Image analysis and AI</h3><p>Work on reconstructed images, mostly in Python.</p><ul><li>pydicom, nibabel, SimpleITK, scikit-image</li><li>MONAI, TorchIO, nnU-Net for deep learning</li><li>Data: TCIA, BraTS, LIDC-IDRI, OpenNeuro</li></ul></div>
+          <div class="card"><h3>Clinical tools and standards</h3><p>How images are stored, viewed and shared in hospitals.</p><ul><li>DICOM and NIfTI formats, PACS</li><li>3D Slicer, ITK-SNAP, OHIF viewer</li><li>Start: open a DICOM series, export it to NIfTI, measure a volume</li></ul></div>
+        </div>
+      </section>
+    </div>
+  </main>
+  <script src="assets/vendor/d3.v7.9.0.min.js"></script>
+  <script src="assets/core.js"></script>
+  <script>MH.shell("home");</script>
+</body>
+</html>

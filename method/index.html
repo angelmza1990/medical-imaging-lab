@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en" data-root="..">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Method · Medical Imaging Lab</title>
+  <meta name="description" content="The phantom, tissue parameters, algorithms and tests behind the Medical Imaging Lab simulations, and their limitations.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231f3a5f'/%3E%3Ccircle cx='32' cy='32' r='15' fill='none' stroke='white' stroke-width='4'/%3E%3Cpath d='M32 12v40M12 32h40' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="../assets/theme.css">
+  <style>
+    .prose h2 { color: var(--ink); margin: 32px 0 8px; }
+    .prose ul { margin: 0 0 12px; padding-left: 20px; }
+    .prose li { margin: 4px 0; }
+    .prose code { font-size: 13px; background: var(--hover); padding: 1px 5px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="wrap">
+      <header class="page-head">
+        <p class="eyebrow">Medical Imaging Lab</p>
+        <h1>Method</h1>
+        <p class="lede">What the simulations compute, how each piece is checked, and what they leave out.</p>
+      </header>
+      <section class="block">
+        <div class="prose">
+          <h2>The phantom</h2>
+          <p>A synthetic axial slice of a head built from ellipses, in the spirit of the Shepp-Logan phantom: scalp fat, skull, a cortical ribbon of grey matter, white matter, deep grey matter, ventricles and two small lesions. It is rasterized at 256 × 256 with 3 × 3 supersampling, so pixels on a boundary hold a mix of tissues (partial volume), as real voxels do.</p>
+          <div class="card table-scroll" style="max-width:none;margin:12px 0"><table class="data" id="tissues"></table></div>
+          <p>Relaxation times are representative values from published measurements (Stanisz et al. 2005; Wansapura et al. 1999; Lu et al. 2005), rounded. Measured values vary between studies, field strengths, subjects and methods by 10–20%. Attenuation is given in Hounsfield units typical of a head CT.</p>
+
+          <h2>MRI</h2>
+          <ul>
+            <li><strong>Bloch simulation</strong>: hard pulses are instantaneous rotations; between them each isochromat precesses at its own off-resonance frequency and relaxes exactly with T1 and T2. Off-resonance frequencies are quantiles of a Lorentzian, which makes the free induction decay exponential with 1/T2* = 1/T2 + 2π × half-width.</li>
+            <li><strong>Contrast</strong>: closed-form steady-state signal equations for spin echo, inversion recovery and spoiled gradient echo (with T2* taken as 0.7 × T2). Noise is complex Gaussian, so magnitude images have Rician noise as on a scanner.</li>
+            <li><strong>k-space</strong>: the 2D FFT of the image (radix-2, centred). The image is real-valued; real MR data carry a smooth phase from the coils and the field, which this simulation leaves out.</li>
+            <li><strong>Compressed sensing</strong>: minimizes ‖MFx − y‖² + λ‖Wx‖₁ with FISTA and adaptive restart, using an orthonormal four-level Haar transform averaged over eight fixed shifts (translation-invariant thresholding). Sampling is by phase-encoding line, denser near the centre. Single coil, real-valued image.</li>
+          </ul>
+
+          <h2>CT</h2>
+          <ul>
+            <li><strong>Projection</strong>: parallel-beam Radon transform with 256 detector bins, sampling each ray at half-pixel steps with bilinear interpolation.</li>
+            <li><strong>Reconstruction</strong>: filtered back-projection. The ramp filter is the band-limited Ram-Lak kernel built in the spatial domain and transformed, optionally apodized by a Shepp-Logan or Hann window; sampling the ramp directly in frequency would shift every value by tens of HU.</li>
+            <li><strong>Noise</strong>: detected photons follow a Poisson distribution (approximated as Gaussian) around I₀ e<sup>−∫μ</sup>, with water at 0.2 cm⁻¹. The geometry is far coarser than a clinical scanner's (about 1,000 views and 900 detectors), so the photon counts that give clinical noise levels here are not the clinical ones.</li>
+          </ul>
+
+          <h2>Tests</h2>
+          <p>The numerical core is tested against analytic results, run with <code>node --test tests/*.test.js</code> on every change:</p>
+          <ul>
+            <li>the FFT against a direct DFT, Parseval's theorem and exact inversion;</li>
+            <li>signal equations at their limits, the inversion-recovery null at TI = T1 ln 2 and the Ernst angle;</li>
+            <li>Bloch relaxation against the exponentials, a spin echo refocusing to e<sup>−TE/T2</sup>, and the T2* decay of a Lorentzian spread;</li>
+            <li>the Radon transform of a disk against 2√(R² − r²), and filtered back-projection recovering grey matter, white matter and fluid within 3 HU;</li>
+            <li>the Haar transform's orthonormality, and compressed sensing beating zero filling.</li>
+          </ul>
+
+          <h2>Limits</h2>
+          <p>These are teaching simulations on a 2D synthetic phantom: no multiple coils, no B₀ or B₁ inhomogeneity maps, no chemical shift, diffusion, flow or magnetization transfer in MRI, and no beam hardening, scatter or fan-beam geometry in CT. They are not a medical device and their images are not real patient data.</p>
+
+          <h2>Code</h2>
+          <p>On <a href="https://github.com/angelmza1990/medical-imaging-lab">GitHub</a>: <code>assets/imaging.js</code> holds all the numerics, with no dependencies; each page's interface is in <code>assets/pages/</code>.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+  <script src="../assets/vendor/d3.v7.9.0.min.js"></script>
+  <script src="../assets/imaging.js"></script>
+  <script src="../assets/core.js"></script>
+  <script>
+    MH.shell("method");
+    const I = window.Imaging;
+    document.getElementById("tissues").innerHTML = `<thead><tr><th>Tissue</th><th>Proton density</th><th>T1, 1.5 T</th><th>T2, 1.5 T</th><th>T1, 3 T</th><th>T2, 3 T</th><th>CT (HU)</th></tr></thead><tbody>` +
+      I.TISSUE_KEYS.filter((k) => k !== "air").map((k) => { const t = I.TISSUES[k]; return `<tr><td>${t.name}</td><td>${t.pd}</td><td>${t.t1[1.5]} ms</td><td>${t.t2[1.5]} ms</td><td>${t.t1[3]} ms</td><td>${t.t2[3]} ms</td><td>${I.HU[k]}</td></tr>`; }).join("") + "</tbody>";
+  </script>
+</body>
+</html>
