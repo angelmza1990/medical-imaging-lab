@@ -269,19 +269,30 @@
     return sino;
   }
 
-  /** Ramp-filter every projection in the frequency domain. window: "ramlak" | "shepp" | "hann". */
+  /**
+   * Ramp-filter every projection. The ramp is built from the band-limited spatial kernel
+   * (h[0] = 1/4, h[k odd] = -1/(pi k)^2, h[k even] = 0) and transformed, rather than sampled directly in
+   * frequency: sampling |f| directly gets the zero-frequency term wrong and shifts every value (a
+   * "cupping" bias of tens of HU). window: "ramlak" | "shepp" | "hann" apodizes the high frequencies.
+   */
   function rampFilter(sino, nAng, nDet, window = "ramlak") {
     let m = 1;
     while (m < 2 * nDet) m <<= 1; // zero-pad to avoid wrap-around
-    const out = new Float64Array(sino.length);
+    const hr = new Float64Array(m), hi = new Float64Array(m);
+    for (let k = 0; k < m; k++) {
+      const d = k <= m / 2 ? k : k - m;
+      hr[k] = d === 0 ? 0.25 : d % 2 ? -1 / (Math.PI * Math.PI * d * d) : 0;
+    }
+    fft(hr, hi);
     const H = new Float64Array(m);
     for (let k = 0; k < m; k++) {
       const f = (k <= m / 2 ? k : m - k) / m; // cycles per sample, 0..0.5
       let w = 1;
       if (window === "shepp") w = f === 0 ? 1 : Math.sin(Math.PI * f) / (Math.PI * f);
       else if (window === "hann") w = 0.5 * (1 + Math.cos(2 * Math.PI * f));
-      H[k] = f * w; // |nu| in cycles per sample; the 1/bin-width factor is applied in backproject
+      H[k] = hr[k] * w; // the kernel is real and even, so its transform is real
     }
+    const out = new Float64Array(sino.length);
     const re = new Float64Array(m), im = new Float64Array(m);
     for (let a = 0; a < nAng; a++) {
       re.fill(0); im.fill(0);

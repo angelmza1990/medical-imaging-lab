@@ -107,6 +107,30 @@ test("CT: Radon transform of a disk and filtered back-projection", () => {
   close(f[4 * n + 64], 0, 0.05, "outside");
 });
 
+test("CT: filtered back-projection recovers Hounsfield units inside tissue", () => {
+  const n = 128, ph = I.phantom(n, 3);
+  const mu = new Float64Array(n * n);
+  for (const k of I.TISSUE_KEYS) { const f = ph.fractions[k]; for (let i = 0; i < n * n; i++) mu[i] += f[i] * (1 + I.HU[k] / 1000); }
+  const ang = Array.from({ length: 180 }, (_, i) => (i * Math.PI) / 180);
+  const f = I.backproject(I.rampFilter(I.radon(mu, n, ang, 128), 180, 128), ang, 128, n);
+  // pixels whose whole 7 x 7 neighbourhood is one tissue: no bias there, within a few HU
+  const pure = (tissue) => {
+    const out = [];
+    for (let y = 3; y < n - 3; y++) for (let x = 3; x < n - 3; x++) {
+      let ok = true;
+      for (let dy = -3; dy <= 3 && ok; dy++) for (let dx = -3; dx <= 3 && ok; dx++) ok = ph.fractions[tissue][(y + dy) * n + x + dx] === 1;
+      if (ok) out.push(y * n + x);
+    }
+    return out;
+  };
+  for (const tissue of ["wm", "gm", "csf"]) {
+    const px = pure(tissue);
+    assert.ok(px.length > 5, `no interior ${tissue} pixels`);
+    const mean = px.reduce((a, i) => a + (f[i] - 1) * 1000, 0) / px.length;
+    close(mean, I.HU[tissue], 3, `${tissue} mean HU over ${px.length} pixels`);
+  }
+});
+
 test("Haar transform is orthonormal and invertible", () => {
   const n = 32, rand = I.rng(9);
   const a = Float64Array.from({ length: n * n }, () => rand());
