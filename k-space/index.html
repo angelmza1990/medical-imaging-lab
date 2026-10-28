@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en" data-root="..">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>k-space · Medical Imaging Lab</title>
+  <meta name="description" content="An MR scanner measures the Fourier transform of the image. Remove, undersample or corrupt parts of k-space and see the artefacts it causes.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231f3a5f'/%3E%3Ccircle cx='32' cy='32' r='15' fill='none' stroke='white' stroke-width='4'/%3E%3Cpath d='M32 12v40M12 32h40' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="../assets/theme.css">
+  <style>
+    .img-grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    @media (max-width: 1000px) { .img-grid.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .modes { display: grid; gap: 6px; }
+    .modes button { text-align: left; font: 500 13px var(--sans); padding: 7px 10px; border-radius: 7px; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink-2); cursor: pointer; }
+    .modes button[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="wrap">
+      <header class="page-head">
+        <p class="eyebrow">Medical Imaging Lab · 3</p>
+        <h1>k-space</h1>
+        <p class="lede">An MR scanner never takes a picture. Its gradients step through spatial frequencies and the coil records how much of each one the body contains: the image's Fourier transform, called k-space. The image is computed afterwards, with an inverse FFT. What you sample, and how well, decides what the image looks like.</p>
+      </header>
+
+      <section class="block">
+        <div class="panel-grid">
+          <div class="card">
+            <div class="ctrl-group">
+              <h3>What reaches the reconstruction</h3>
+              <div class="modes" id="modes"></div>
+            </div>
+            <div class="ctrl-group">
+              <div id="s-param"></div>
+              <div id="s-noise"></div>
+              <p class="note" id="mode-note" style="margin:0"></p>
+            </div>
+          </div>
+          <div class="card">
+            <div class="img-grid four">
+              <div id="v-k"></div><div id="v-img"></div><div id="v-err"></div><div id="v-wave"></div>
+            </div>
+            <div class="tiles" id="tiles" style="margin-top:14px"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="block">
+        <h2>How to read k-space</h2>
+        <div class="prose">
+          <p><strong>Every point is a wave.</strong> A point at (k<sub>x</sub>, k<sub>y</sub>) stands for a stripe pattern across the whole image, with a spacing of 1/|k| and pointing along k. Its value says how much of that pattern the image contains, and with which phase. Click anywhere in the k-space panel to see the stripe a point represents.</p>
+          <p><strong>The centre holds contrast, the edges hold detail.</strong> The low frequencies near the centre carry the overall brightness of each tissue; the high frequencies at the edges carry edges and fine structure. Keep only the centre and you get the right contrast, blurred; keep only the edges and you get an outline.</p>
+          <p><strong>Spacing sets the field of view, extent sets resolution.</strong> The step between sampled lines, Δk, fixes the field of view at 1/Δk: skip every other line and the field of view halves, so anything outside it folds back over the image (aliasing). The highest frequency sampled, k<sub>max</sub>, fixes the smallest detail at about 1/(2k<sub>max</sub>).</p>
+          <p><strong>Time is lines.</strong> Each phase-encoding line takes one repetition, so scan time grows with the number of lines. Every acceleration technique, from partial Fourier to parallel imaging, compressed sensing and deep-learning reconstruction, is a way to acquire fewer lines and fill in what is missing.</p>
+          <p class="formula">image(x, y) = Σ<sub>kx, ky</sub> S(k<sub>x</sub>, k<sub>y</sub>) · e<sup>i2π(k<sub>x</sub>x + k<sub>y</sub>y)</sup></p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="../assets/vendor/d3.v7.9.0.min.js"></script>
+  <script src="../assets/imaging.js"></script>
+  <script src="../assets/core.js"></script>
+  <script src="../assets/viz.js"></script>
+  <script src="../assets/pages/kspace.js"></script>
+</body>
+</html>
