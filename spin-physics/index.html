@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en" data-root="..">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spin Physics · Medical Imaging Lab</title>
+  <meta name="description" content="A Bloch-equation simulator: watch nuclear spins precess, dephase, refocus into a spin echo and relax with T1 and T2.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231f3a5f'/%3E%3Ccircle cx='32' cy='32' r='15' fill='none' stroke='white' stroke-width='4'/%3E%3Cpath d='M32 12v40M12 32h40' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="../assets/theme.css">
+  <style>
+    #vectors svg { display: block; width: 100%; height: auto; }
+    #vectors text { font: 12px var(--sans); fill: var(--muted); }
+    .play-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 13px; color: var(--ink-2); }
+    .play-row input { flex: 1; accent-color: var(--accent); }
+    .play-row b { font-variant-numeric: tabular-nums; min-width: 72px; text-align: right; color: var(--ink); }
+    .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="wrap">
+      <header class="page-head">
+        <p class="eyebrow">Medical Imaging Lab · 1</p>
+        <h1>Spin physics</h1>
+        <p class="lede">Every MR image starts here. Hydrogen nuclei in a magnetic field line up and precess; a radio-frequency pulse tips them over, and as they fall back they emit the signal the scanner records. This simulator solves the Bloch equations for a group of spins, each slightly off resonance, as most tissues are.</p>
+      </header>
+
+      <section class="block">
+        <div class="panel-grid">
+          <div class="card">
+            <div class="ctrl-group">
+              <h3>Sequence</h3>
+              <div id="seq" style="margin-bottom:12px"></div>
+              <p class="note" id="seq-note" style="margin:0"></p>
+            </div>
+            <div class="ctrl-group">
+              <h3>Tissue</h3>
+              <div class="presets" id="presets"></div>
+              <div id="s-t1"></div><div id="s-t2"></div><div id="s-spread"></div>
+            </div>
+            <div class="ctrl-group">
+              <h3>Timing</h3>
+              <div id="s-te"></div><div id="s-ti"></div>
+            </div>
+          </div>
+          <div>
+            <div class="card">
+              <h3>Spins in the rotating frame</h3>
+              <div id="vectors"></div>
+              <div class="play-row"><button class="btn secondary" type="button" id="play" style="padding:5px 12px">Play</button><input type="range" id="scrub" min="0" max="0" step="1" value="0"><b id="time">0 ms</b></div>
+              <p class="note">Thin arrows: individual spins (isochromats). Thick arrow: their sum, the net magnetization the coil measures. The frame rotates with the scanner frequency, so a spin exactly on resonance stands still.</p>
+            </div>
+            <div class="card">
+              <h3>Magnetization over time</h3>
+              <div class="chart" id="curves"></div>
+              <div class="legend" id="curves-legend"></div>
+            </div>
+            <div class="tiles" id="tiles" style="margin-top:16px"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="block">
+        <h2>What you are seeing</h2>
+        <div class="prose">
+          <p><strong>Precession.</strong> In a field <em>B₀</em> a proton spins about it at the Larmor frequency <em>f = γB₀</em>, with γ = 42.58 MHz per tesla: about 64 MHz at 1.5 T and 128 MHz at 3 T. A pulse at that frequency tips the magnetization away from <em>z</em>; a 90° pulse lays it flat in the transverse plane, where a rotating magnetization induces a voltage in the receiver coil.</p>
+          <p><strong>T2 and T2*.</strong> Spins in a voxel do not all feel the same field. Tiny differences make them precess at slightly different rates, fan out and cancel: the signal decays with T2*. Part of that loss is random and irreversible (T2, from interactions between spins); part comes from fixed field differences and can be undone.</p>
+          <p><strong>The spin echo.</strong> A 180° pulse at time TE/2 flips the fan over, so the fast spins end up behind the slow ones and catch up exactly at TE. The echo recovers everything but true T2 decay, which is why spin-echo images measure T2 and gradient-echo images measure T2*.</p>
+          <p><strong>T1.</strong> Meanwhile the longitudinal magnetization <em>M<sub>z</sub></em> grows back towards equilibrium with time constant T1. In inversion recovery a 180° pulse first flips it to −1; it passes through zero at TI = T1 ln 2, and reading out at that moment erases the tissue from the image, as FLAIR does with fluid.</p>
+          <p class="formula">dM/dt = γ M × B − (M<sub>x</sub> x̂ + M<sub>y</sub> ŷ)/T2 − (M<sub>z</sub> − M₀) ẑ/T1</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="../assets/vendor/d3.v7.9.0.min.js"></script>
+  <script src="../assets/imaging.js"></script>
+  <script src="../assets/core.js"></script>
+  <script src="../assets/viz.js"></script>
+  <script src="../assets/pages/bloch.js"></script>
+</body>
+</html>

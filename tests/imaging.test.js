@@ -75,6 +75,16 @@ test("Bloch: a spin echo refocuses dephasing but not T2 decay", () => {
   close(mag(te), Math.exp(-te / t2), 0.01, "echo amplitude");
 });
 
+test("Bloch: a Lorentzian field spread gives an exponential T2* decay", () => {
+  const t2 = 100, hwhm = 5;
+  const r = I.bloch({ t1: 1000, t2, offsets: I.lorentzian(2001, hwhm), events: [{ t: 0, flip: 90 }], duration: 80, dt: 0.5 });
+  const ts = I.t2star(t2, hwhm);
+  for (const t of [10, 20, 40]) {
+    const i = r.t.indexOf(t);
+    close(Math.hypot(r.mx[i], r.my[i]), Math.exp(-t / ts), 0.02, `FID at ${t} ms`);
+  }
+});
+
 test("CT: Radon transform of a disk and filtered back-projection", () => {
   const n = 128, R = 0.5;
   const img = new Float64Array(n * n);

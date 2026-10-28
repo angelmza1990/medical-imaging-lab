@@ -204,7 +204,8 @@
       const iw = W - m.left - m.right, ih = H - m.top - m.bottom;
 
       const all = series.flatMap((s) => s.values);
-      const x = d3.scaleTime().domain(o.xDomain || d3.extent(all, (d) => d[0])).range([0, iw]);
+      // xLinear: a numeric horizontal axis (time in ms, frequency...) instead of dates
+      const x = (o.xLinear ? d3.scaleLinear() : d3.scaleTime()).domain(o.xDomain || d3.extent(all, (d) => d[0])).range([0, iw]);
       let yd = o.yDomain || d3.extent(all, (d) => d[1]);
       if (o.baseline != null) yd = [Math.min(yd[0], o.baseline), Math.max(yd[1], o.baseline)];
       const y = (o.log ? d3.scaleLog() : d3.scaleLinear()).domain(yd).range([ih, 0]);
@@ -226,7 +227,7 @@
         .attr("x1", 0).attr("x2", iw).attr("y1", y).attr("y2", y);
       g.append("g").attr("class", "axis").call(d3.axisLeft(y).tickValues(yTicks).tickFormat(o.yFormat).tickSize(0).tickPadding(8));
       g.append("g").attr("class", "axis").attr("transform", `translate(0,${ih})`)
-        .call(d3.axisBottom(x).ticks(narrow ? 4 : 8).tickSizeOuter(0).tickSize(4).tickPadding(6));
+        .call(d3.axisBottom(x).ticks(narrow ? 4 : 8).tickFormat(o.xFormat || null).tickSizeOuter(0).tickSize(4).tickPadding(6));
       if (o.baseline != null && !o.log) {
         g.append("line").attr("class", "baseline").attr("x1", 0).attr("x2", iw).attr("y1", y(o.baseline)).attr("y2", y(o.baseline));
       }
@@ -281,7 +282,7 @@
           const pts = series.map((s) => {
             const i = bis(s.values, xd);
             return { s, d: s.values[i] };
-          }).filter((p) => p.d && Math.abs(p.d[0] - xd) < 1000 * 86400 * 120 && p.d[1] != null);
+          }).filter((p) => p.d && (o.xLinear || Math.abs(p.d[0] - xd) < 1000 * 86400 * 120) && p.d[1] != null);
           if (!pts.length) return;
           const at = pts.reduce((a, b) => (Math.abs(b.d[0] - xd) < Math.abs(a.d[0] - xd) ? b : a)).d[0];
           cross.style("display", null).attr("x1", x(at)).attr("x2", x(at));

@@ -233,6 +233,14 @@
   /** Off-resonance offsets (Hz) spread evenly over +/- width/2: a simple model of field inhomogeneity (T2*). */
   const spread = (n, width) => Array.from({ length: n }, (_, i) => (n === 1 ? 0 : (i / (n - 1) - 0.5) * width));
 
+  /**
+   * Off-resonance offsets (Hz) drawn as evenly spaced quantiles of a Lorentzian with half-width hwhm.
+   * A Lorentzian spread makes the free induction decay exponential, as in tissue:
+   * the FID decays as e^(-t/T2*) with 1/T2* = 1/T2 + 2 pi hwhm.
+   */
+  const lorentzian = (n, hwhm) => Array.from({ length: n }, (_, i) => hwhm * Math.tan(Math.PI * ((i + 0.5) / n - 0.5)));
+  const t2star = (t2, hwhm) => 1 / (1 / t2 + (2 * Math.PI * hwhm) / 1000);
+
   // ======================= CT: projection and reconstruction =======================
   /**
    * Parallel-beam Radon transform of an n x n image (pixel size 2/n in [-1, 1]).
@@ -430,7 +438,7 @@
     fft, fft2, fftshift, toKspace, fromKspace, rng, gaussian,
     TISSUES, TISSUE_KEYS, HU, HEAD, phantom,
     spinEcho, inversionRecovery, gradientEcho, ernstAngle, mrImage, tissueSignals,
-    rotate, bloch, spread,
+    rotate, bloch, spread, lorentzian, t2star,
     radon, rampFilter, backproject,
     haar2, randomLineMask, csRecon, nrmse, psnr,
   };
