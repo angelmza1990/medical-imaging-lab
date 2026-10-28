@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en" data-root="..">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CT Reconstruction · Medical Imaging Lab</title>
+  <meta name="description" content="How a CT scanner turns X-ray projections into a slice: the sinogram, simple and filtered back-projection, the number of views and radiation dose.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231f3a5f'/%3E%3Ccircle cx='32' cy='32' r='15' fill='none' stroke='white' stroke-width='4'/%3E%3Cpath d='M32 12v40M12 32h40' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="../assets/theme.css">
+  <style>
+    .img-grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    @media (max-width: 1000px) { .img-grid.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="wrap">
+      <header class="page-head">
+        <p class="eyebrow">Medical Imaging Lab · 5</p>
+        <h1>CT reconstruction</h1>
+        <p class="lede">A CT scanner sends X-rays through the body from hundreds of angles and measures how much gets through. Each measurement is the total attenuation along one line. Stacked by angle, they form the sinogram; the image is recovered by smearing each projection back across the slice, after a filter that undoes the blur this smearing creates.</p>
+        <p class="updated" id="status">Computing projections…</p>
+      </header>
+
+      <section class="block">
+        <div class="panel-grid">
+          <div class="card">
+            <div class="ctrl-group">
+              <h3>Acquisition</h3>
+              <div id="s-views"></div>
+              <div id="s-dose"></div>
+            </div>
+            <div class="ctrl-group">
+              <h3>Reconstruction</h3>
+              <div id="filter" style="margin-bottom:10px"></div>
+              <p class="note" id="filter-note" style="margin:0"></p>
+            </div>
+            <div class="ctrl-group">
+              <h3>Display window</h3>
+              <div id="window"></div>
+              <p class="note" id="window-note"></p>
+            </div>
+          </div>
+          <div class="card">
+            <div class="img-grid four">
+              <div id="v-sino"></div><div id="v-rec"></div><div id="v-ref"></div><div id="v-err"></div>
+            </div>
+            <div class="tiles" id="tiles" style="margin-top:14px"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="block">
+        <h2>Reading it</h2>
+        <div class="prose">
+          <p><strong>Projections.</strong> An X-ray beam of intensity I₀ leaves the body at I = I₀ e<sup>−∫μ dl</sup>, so −ln(I/I₀) is the line integral of the attenuation coefficient μ along the ray: the Radon transform. A point in the body traces a sine wave across the sinogram as the gantry turns, which gives the sinogram its name.</p>
+          <p><strong>Why the filter.</strong> Spreading each projection back along its rays puts every point's value in the right place, but also smears it over the whole image, giving a blur that falls off as 1/r. In frequency terms, back-projection over-weights low frequencies by 1/|f|; multiplying each projection by |f|, the ramp filter, cancels it exactly (the Fourier slice theorem). The ramp also amplifies high-frequency noise, so windows such as Shepp-Logan or Hann roll it off, trading a little sharpness for less noise.</p>
+          <p><strong>Views and dose.</strong> Too few angles leave streaks radiating from edges. Fewer photons, a lower dose, means each measurement is noisier: the noise in the image grows as the square root of the dose falls, so halving the noise takes four times the radiation. Iterative and deep-learning reconstructions in modern scanners are, above all, ways of getting diagnostic images from fewer photons.</p>
+          <p><strong>Hounsfield units.</strong> CT images are reported as HU = 1000 × (μ − μ<sub>water</sub>) / μ<sub>water</sub>: water is 0, air −1000, fat about −100, brain 20 to 40, bone up to +1000 and beyond. Brain tissues differ by only tens of HU, which is why a narrow display window is used to read them.</p>
+          <p class="formula">f(x, y) = ∫₀<sup>π</sup> (p<sub>θ</sub> ∗ h)(x cos θ + y sin θ) dθ,   ĥ(ν) = |ν|</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="../assets/vendor/d3.v7.9.0.min.js"></script>
+  <script src="../assets/imaging.js"></script>
+  <script src="../assets/core.js"></script>
+  <script src="../assets/viz.js"></script>
+  <script src="../assets/pages/ct.js"></script>
+</body>
+</html>
