@@ -367,16 +367,17 @@
     return out;
   }
 
+  const CS_SHIFTS = [[0, 0], [1, 1], [2, 3], [3, 2], [5, 6], [6, 5], [7, 7], [4, 1]];
+
   /**
    * Compressed-sensing reconstruction: minimize ||M F x - y||^2 + lambda ||W x||_1, where F is the
    * unitary 2D Fourier transform (centred k-space), M keeps the acquired phase-encode lines and W is a
-   * Haar wavelet transform. Solved with FISTA (accelerated iterative soft-thresholding). Each iteration
-   * shifts the image by a random offset before thresholding ("cycle spinning"), which averages out the
+   * Haar wavelet transform. Solved with FISTA (accelerated iterative soft-thresholding) with adaptive restart.
+   * The threshold is applied to several shifted copies and averaged ("cycle spinning"), which removes the
    * blocky artefacts of a plain Haar basis. lambda is relative to the largest detail coefficient of
    * the zero-filled image. Works on the real part (the phantom is real).
    */
-  function csRecon(k, lines, n, { lambda = 0.003, iters = 80, levels = 4, seed = 11, onIter } = {}) {
-    const rand = rng(seed);
+  function csRecon(k, lines, n, { lambda = 0.003, iters = 80, levels = 4, shifts = CS_SHIFTS, onIter } = {}) {
     const yr = new Float64Array(n * n), yi = new Float64Array(n * n);
     for (let r = 0; r < n; r++) if (lines[r]) for (let c = 0; c < n; c++) { yr[r * n + c] = k.re[r * n + c]; yi[r * n + c] = k.im[r * n + c]; }
     const zeroFilled = fromKspace({ re: yr, im: yi }, n).re;
@@ -400,24 +401,39 @@
       const g = fromKspace(kz, n).re;
       let v = new Float64Array(n * n);
       for (let i = 0; i < n * n; i++) v[i] = z[i] - g[i];
-      // proximal step: soft-threshold the detail coefficients of a randomly shifted copy
-      const dx = Math.floor(rand() * 8), dy = Math.floor(rand() * 8);
-      v = shift2(v, n, dx, dy);
-      haar2(v, n, levels);
-      for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
-        if (r < a && c < a) continue;
-        const i = r * n + c, w = v[i];
-        v[i] = Math.sign(w) * Math.max(0, Math.abs(w) - thr);
+      // proximal step: soft-threshold the detail coefficients of several shifted copies and average
+      // them (translation-invariant thresholding), which removes the blocks of a plain Haar basis
+      const xNew = new Float64Array(n * n);
+      for (const [dx, dy] of shifts) {
+        const w = shift2(v, n, dx, dy);
+        haar2(w, n, levels);
+        for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+          if (r < a && c < a) continue;
+          const i = r * n + c, q = w[i];
+          w[i] = Math.sign(q) * Math.max(0, Math.abs(q) - thr);
+        }
+        haar2(w, n, levels, true);
+        const back = shift2(w, n, -dx, -dy);
+        for (let i = 0; i < n * n; i++) xNew[i] += back[i] / shifts.length;
       }
-      haar2(v, n, levels, true);
-      const xNew = shift2(v, n, -dx, -dy);
-      // FISTA momentum
+      // FISTA momentum, with gradient-based adaptive restart (O'Donoghue & Candes 2015):
+      // when the momentum points against the last step, reset it, which removes the oscillations
+      let dot = 0;
+      for (let i = 0; i < n * n; i++) dot += (z[i] - xNew[i]) * (xNew[i] - x[i]);
+      if (dot > 0) tk = 1;
       const tNew = (1 + Math.sqrt(1 + 4 * tk * tk)) / 2;
       for (let i = 0; i < n * n; i++) z[i] = xNew[i] + ((tk - 1) / tNew) * (xNew[i] - x[i]);
       x = xNew; tk = tNew;
       if (onIter) onIter(it + 1, x);
     }
     return x;
+  }
+
+  /** Largest value of an array (Math.max(...a) overflows the call stack on large images). */
+  function maxOf(a) {
+    let m = -Infinity;
+    for (let i = 0; i < a.length; i++) if (a[i] > m) m = a[i];
+    return m;
   }
 
   // ======================= image quality =======================
@@ -440,7 +456,7 @@
     spinEcho, inversionRecovery, gradientEcho, ernstAngle, mrImage, tissueSignals,
     rotate, bloch, spread, lorentzian, t2star,
     radon, rampFilter, backproject,
-    haar2, randomLineMask, csRecon, nrmse, psnr,
+    haar2, randomLineMask, csRecon, nrmse, psnr, maxOf,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.Imaging = api;

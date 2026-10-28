@@ -7,7 +7,7 @@
 
   const img = I.mrImage(I.phantom(N, 3), { type: "se", tr: 4000, te: 100, field: 1.5 });
   const ref = I.toKspace(img, N);
-  const peak = Math.max(...img);
+  const peak = I.maxOf(img);
 
   const MODES = {
     full: { label: "All of k-space", note: "Every line acquired: the reference image." },

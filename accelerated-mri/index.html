@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en" data-root="..">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Accelerated MRI · Medical Imaging Lab</title>
+  <meta name="description" content="Compressed sensing: skip most of k-space, then recover the image by asking for the sparsest picture consistent with the data.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231f3a5f'/%3E%3Ccircle cx='32' cy='32' r='15' fill='none' stroke='white' stroke-width='4'/%3E%3Cpath d='M32 12v40M12 32h40' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="../assets/theme.css">
+  <style>
+    .img-grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    @media (max-width: 1000px) { .img-grid.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .mask { display: flex; flex-direction: column; width: 100%; aspect-ratio: 1; background: #000; border-radius: 6px; overflow: hidden; }
+    .mask i { min-height: 0; }
+    .mask i { flex: 1; display: block; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="wrap">
+      <header class="page-head">
+        <p class="eyebrow">Medical Imaging Lab · 4</p>
+        <h1>Accelerated MRI</h1>
+        <p class="lede">Scan time is lines of k-space. Compressed sensing acquires only a fraction of them, at random, and then searches for the image that agrees with what was measured and is as simple as possible in a wavelet basis. Medical images are compressible, so that simplest image is usually the right one.</p>
+      </header>
+
+      <section class="block">
+        <div class="panel-grid">
+          <div class="card">
+            <div class="ctrl-group">
+              <h3>Acquisition</h3>
+              <div id="pattern" style="margin-bottom:12px"></div>
+              <div id="s-frac"></div>
+              <div id="s-noise"></div>
+            </div>
+            <div class="ctrl-group">
+              <h3>Reconstruction</h3>
+              <div id="s-lambda"></div>
+              <div id="s-iters"></div>
+              <button class="btn" type="button" id="run">Reconstruct</button>
+              <p class="status" id="status" style="margin-top:10px"></p>
+            </div>
+          </div>
+          <div class="card">
+            <div class="img-grid four">
+              <div class="img-view"><div class="img-title">Lines acquired</div><div class="mask" id="mask"></div><div class="img-note" id="mask-note"></div></div>
+              <div id="v-zero"></div><div id="v-cs"></div><div id="v-ref"></div>
+            </div>
+            <div class="tiles" id="tiles" style="margin-top:14px"></div>
+            <h3 style="margin-top:18px">Convergence</h3>
+            <div class="chart" id="conv"></div>
+            <div class="legend" id="conv-legend"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="block">
+        <h2>Why it works</h2>
+        <div class="prose">
+          <p><strong>Images are sparse in the right basis.</strong> A wavelet transform describes an image by its coarse shape plus local details at several scales. For anatomy, most detail coefficients are close to zero, so a few percent of them hold almost all the information, which is also how JPEG 2000 compresses photos.</p>
+          <p><strong>Random sampling makes the artefact look like noise.</strong> Skipping lines on a regular grid folds the image onto itself: a coherent copy that a sparsity prior cannot tell apart from real anatomy. Skipping them at random spreads the error as low-level, noise-like interference across the image, which thresholding the wavelet coefficients removes. Switch the pattern to regular and the same algorithm fails.</p>
+          <p><strong>The algorithm.</strong> FISTA alternates two steps: a gradient step that pulls the estimate towards consistency with the acquired k-space lines, and a soft threshold that shrinks small wavelet coefficients to zero. λ sets the balance: too small and the aliasing stays, too large and real detail is erased. Noise in the data calls for a larger λ.</p>
+          <p class="formula">x̂ = argmin<sub>x</sub> ‖M F x − y‖² + λ ‖W x‖₁   (M: sampled lines, F: Fourier transform, W: wavelets)</p>
+          <p>Compressed sensing reached clinical scanners in 2017; today deep-learning reconstructions, trained on datasets such as fastMRI, learn the prior from data instead of assuming wavelet sparsity, and allow even larger accelerations.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="../assets/vendor/d3.v7.9.0.min.js"></script>
+  <script src="../assets/imaging.js"></script>
+  <script src="../assets/core.js"></script>
+  <script src="../assets/viz.js"></script>
+  <script src="../assets/pages/cs.js"></script>
+</body>
+</html>
